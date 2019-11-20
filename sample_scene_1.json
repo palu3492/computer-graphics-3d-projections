@@ -1,0 +1,34 @@
+{
+  "view": {
+    "type": "perspective",
+    "vrp": [20, 0, -30],
+    "vpn": [1, 0, 1],
+    "vup": [0, 1, 0],
+    "prp": [14, 20, 26],
+    "clip": [-20, 20, -4, 36, 1, -50]
+  },
+  "models": [
+    {
+      "type": "cube",
+      "center": [-50, 0, -65, 1],
+      "width": 20,
+      "height": 20,
+      "depth": 20,
+      "animation": {
+        "axis": "x",
+        "rps": 1
+      }
+    },
+    {
+      "type": "cube",
+      "center": [-40, 0, -20, 1],
+      "width": 10,
+      "height": 10,
+      "depth": 10,
+      "animation": {
+        "axis": "y",
+        "rps": 10
+      }
+    }
+  ]
+}

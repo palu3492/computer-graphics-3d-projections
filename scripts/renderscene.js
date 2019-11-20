@@ -2,6 +2,9 @@ let view;
 let ctx;
 let scene;
 
+let previous;
+let cube;
+
 // Initialization function - called when web page loads
 function Init() {
     let w = 800;
@@ -15,7 +18,7 @@ function Init() {
     // initial scene... feel free to change this
     scene = {
         view: {
-            type: 'parallel',
+            type: 'perspective',
             vrp: Vector3(20, 0, -30),
             vpn: Vector3(1, 0, 1),
             vup: Vector3(0, 1, 0),
@@ -23,6 +26,28 @@ function Init() {
             clip: [-20, 20, -4, 36, 1, -50]
         },
         models: [
+            {
+                type: 'cube',
+                center: Vector4(-50,  0, -65, 1),
+                width: 20,
+                height: 20,
+                depth: 20,
+                animation: {
+                    axis: 'x',
+                    rps: 1
+                }
+            },
+            {
+                type: 'cube',
+                center: Vector4(-40,  0, -20, 1),
+                width: 10,
+                height: 10,
+                depth: 10,
+                animation: {
+                    axis: 'y',
+                    rps: 10
+                }
+            },
             {
                 type: 'generic',
                 vertices: [
@@ -52,21 +77,108 @@ function Init() {
 
     // event handler for pressing arrow keys
     document.addEventListener('keydown', OnKeyDown, false);
+
+    // cube = createCube();
     
-    DrawScene();
+    // DrawScene();
+    window.requestAnimationFrame(animateModels);
 }
+
+function createCube(model){
+    //  Vector4(model.center[0], model.center[1], model.center[2], 1);
+    let center = model.center;
+    let x, y, z;
+
+    x = center.x; y = center.y; z = center.z;
+    x -= model.width / 2;
+    y -= model.height / 2;
+    z -= model.depth / 2;
+
+    let vertices = [];
+    for(let i=0; i<2; i++) {
+        vertices.push(Vector4(x, y, z, 1));
+        x += model.width;
+        vertices.push(Vector4(x, y, z, 1));
+        y += model.height;
+        vertices.push(Vector4(x, y, z, 1));
+        x -= model.width;
+        vertices.push(Vector4(x, y, z, 1));
+        z += model.depth;
+        y -= model.height;
+    }
+    vertices.push(center); // paints center
+
+    let edges = [
+        [0, 1, 2, 3, 0],
+        [4, 5, 6, 7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+        [8, 8],
+    ];
+
+    model.vertices = vertices;
+    model.edges = edges;
+    model.ready = true;
+}
+
+function createModel(model){
+    if(model.type === 'cube'){
+        createCube(model);
+    }
+}
+
+let previousTime;
+function animateModels(time){
+    if(!previousTime) {
+        previousTime = time;
+    } else {
+        let delta = (time - previousTime); // how much of a second it took 0.0166
+        previousTime = time;
+        scene.models.forEach(model => {
+            if(model.animation && model.ready) {
+                let rps = model.animation.rps;
+                let theta = (delta / 1000) * rps;
+
+                let animAxis = model.animation.axis;
+                let rotationMatrix;
+                if(animAxis === 'x'){
+                    rotationMatrix = mat4x4rotatex(theta);
+                }else if(animAxis === 'y'){
+                    rotationMatrix = mat4x4rotatey(theta);
+                }else if(animAxis === 'z'){
+                    rotationMatrix = mat4x4rotatez(theta);
+                }
+
+                let a = mat4x4translate(-model.center.x, -model.center.y, -model.center.z);
+                let b = mat4x4translate(model.center.x, model.center.y, model.center.z);
+                let c = Matrix.multiply(b, rotationMatrix, a);
+
+                for (let i = 0; i < model.vertices.length; i++) {
+                    let vertex = model.vertices[i];
+                    model.vertices[i] = Matrix.multiply(c, vertex);
+                }
+            }
+        });
+    }
+    DrawScene();
+    // Next frame
+    console.log(scene.models);
+    window.requestAnimationFrame(animateModels);
+}
+
 
 // Main drawing code here
 function DrawScene() {
     ctx.clearRect(0, 0, view.width, view.height); // clear canvas
+
     let viewType = scene.view.type; // perspective or parallel
     let projectionMatrix;
     if(viewType === 'perspective'){
         projectionMatrix = mat4x4perspective(scene.view.vrp, scene.view.vpn, scene.view.vup, scene.view.prp, scene.view.clip);
     } else if(viewType === 'parallel'){
         projectionMatrix = mat4x4parallel(scene.view.vrp, scene.view.vpn, scene.view.vup, scene.view.prp, scene.view.clip);
-    } else {
-        console.log('error');
     }
     // not used in parallel
     let mPer = new Matrix(4,4);
@@ -85,49 +197,58 @@ function DrawScene() {
         [0, 0, 0, 1]
     ];
 
-    let model = scene.models[0]; // first model
+    // let model = scene.models[0]; // first model
+    // // model = createCube();
+    // model = cube;
 
-    let matrices = [];
-    model.vertices.forEach(vertex => {
-        matrices.push(Matrix.multiply(projectionMatrix, vertex));
-    });
+    scene.models.forEach(model => {
+        if(model.type !== 'generic' && !model.ready){
+            createModel(model);
+        }else {
 
-    let vectors = [];
-    model.edges.forEach(edge => {
-        for(let e=0; e<edge.length-1; e++) {
-            let pt0 = matrices[edge[e]];
-            let pt1 = matrices[edge[e+1]];
+            let matrices = [];
+            model.vertices.forEach(vertex => {
+                matrices.push(Matrix.multiply(projectionMatrix, vertex));
+            });
 
-            let clipped = clipLine(pt0, pt1, scene.view);
+            let vectors = [];
+            model.edges.forEach(edge => {
+                for (let e = 0; e < edge.length - 1; e++) {
+                    let pt0 = matrices[edge[e]];
+                    let pt1 = matrices[edge[e + 1]];
 
-            pt0 = Vector4(clipped.pt0.x,clipped.pt0.y,clipped.pt0.z,1);
-            pt1 = Vector4(clipped.pt1.x,clipped.pt1.y,clipped.pt1.z,1);
+                    // let clipped = clipLine(pt0, pt1, scene.view);
+                    // pt0 = Vector4(clipped.pt0.x,clipped.pt0.y,clipped.pt0.z,1);
+                    // pt1 = Vector4(clipped.pt1.x,clipped.pt1.y,clipped.pt1.z,1);
 
-            if(viewType === 'perspective'){
-                vectors.push( Matrix.multiply(translateScale, mPer, pt0) );
-                vectors.push( Matrix.multiply(translateScale, mPer, pt1) );
-            } else{
-                vectors.push( Matrix.multiply(translateScale, pt0) );
-                vectors.push( Matrix.multiply(translateScale, pt1) );
+                    // Don't use mPer in parallel
+                    if (viewType === 'perspective') {
+                        vectors.push(Matrix.multiply(translateScale, mPer, pt0));
+                        vectors.push(Matrix.multiply(translateScale, mPer, pt1));
+                    } else {
+                        vectors.push(Matrix.multiply(translateScale, pt0));
+                        vectors.push(Matrix.multiply(translateScale, pt1));
+                    }
+                }
+            });
+
+            let projection = [];
+            vectors.forEach(vector => {
+                let x = vector.x / vector.w;
+                let y = vector.y / vector.w;
+                let z = vector.z / vector.w;
+                let w = vector.w / vector.w;
+                let newVector = Vector4(x, y, z, w);
+                projection.push(newVector);
+            });
+
+            for (let i = 0; i < projection.length; i += 2) {
+                // watch it be drawn
+                // setTimeout(function(){ DrawLine(projection[i].x, projection[i].y, projection[i+1].x, projection[i+1].y); }, i*200);
+                DrawLine(projection[i].x, projection[i].y, projection[i + 1].x, projection[i + 1].y);
             }
         }
     });
-
-    let projection = [];
-    vectors.forEach(vector => {
-        let x = vector.x / vector.w;
-        let y = vector.y / vector.w;
-        let z = vector.z / vector.w;
-        let w = vector.w / vector.w;
-        let newVector = Vector4(x, y, z, w);
-        projection.push(newVector);
-    });
-
-    for(let i = 0; i < projection.length; i+=2) {
-        // watch it be drawn
-        // setTimeout(function(){ DrawLine(projection[i].x, projection[i].y, projection[i+1].x, projection[i+1].y); }, i*100);
-        DrawLine(projection[i].x, projection[i].y, projection[i+1].x, projection[i+1].y);
-    }
 
 }
 
@@ -161,9 +282,7 @@ function LoadNewScene() {
                                                  1);
             }
         }
-
-        DrawScene();
-};
+    };
     reader.readAsText(scene_file.files[0], "UTF-8");
 }
 

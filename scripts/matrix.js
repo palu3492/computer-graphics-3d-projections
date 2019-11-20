@@ -258,35 +258,50 @@ function mat4x4translate(tx, ty, tz) {
     return newMatrix;
 }
 
-function mat4x4scale(sx, sy, sz) {
-    let result = new Matrix(4, 4);
-
-    return result;
-}
+// function mat4x4scale(sx, sy, sz) {
+//     let result = new Matrix(4, 4);
+//
+//     return result;
+// }
 
 function mat4x4rotatex(theta) {
     let result = new Matrix(4, 4);
-
+    result.data[0][0] = 1;
+    result.data[1][1] = Math.cos(theta);
+    result.data[1][2] = (-1) * (Math.sin(theta));
+    result.data[2][1] = Math.sin(theta);
+    result.data[2][2] = Math.cos(theta);
+    result.data[3][3] = 1;
     return result;
 }
 
 function mat4x4rotatey(theta) {
     let result = new Matrix(4, 4);
-
+    result.data[0][0] = Math.cos(theta);
+    result.data[0][2] = Math.sin(theta);
+    result.data[1][1] = 1;
+    result.data[2][0] = (-1) * (Math.sin(theta));
+    result.data[2][2] = Math.cos(theta);
+    result.data[3][3] = 1;
     return result;
 }
 
 function mat4x4rotatez(theta) {
     let result = new Matrix(4, 4);
-
+    result.data[0][0] = Math.cos(theta);
+    result.data[0][1] = (-1) * (Math.sin(theta));
+    result.data[1][0] = Math.sin(theta);
+    result.data[1][1] = Math.cos(theta);
+    result.data[2][2] = 1;
+    result.data[3][3] = 1;
     return result;
 }
-
-function mat4x4shearxy(shx, shy) {
-    let result = new Matrix(4, 4);
-
-    return result;
-}
+//
+// function mat4x4shearxy(shx, shy) {
+//     let result = new Matrix(4, 4);
+//
+//     return result;
+// }
 
 function rotateVrc(nAxis, uAxis, vAxis){
     let newMatrix = new Matrix(4, 4);
